@@ -1,0 +1,68 @@
+trigger:
+  - master
+
+stages:
+- stage: Build Nuget Package
+  displayName: 'Build'
+  pool:
+    vmImage: 'windows-latest'
+  jobs:
+  - job: Build_Nuget
+    displayName: Build_Nuget  
+
+    steps:
+    - task: NuGetCommand@2
+      inputs:
+        command: 'restore'
+        restoreSolution: '**/*.sln'
+        feedsToUse: 'select'
+        vstsFeed: 'xxxxxxxxx'
+        verbosityRestore: 'Normal'
+    - task: MSBuild@1
+      inputs:
+        solution: '**/*.sln'
+        msbuildArchitecture: 'x64'
+        platform: '$(BuildPlatform)'
+        configuration: '$(BuildConfiguration)'
+        maximumCpuCount: true
+    - task: VSTest@2
+      inputs:
+        testSelector: 'testAssemblies'
+        testAssemblyVer2: |
+          **\*test*.dll
+          !**\*TestAdapter.dll
+          !**\obj\**
+        searchFolder: '$(System.DefaultWorkingDirectory)'
+        platform: '$(BuildPlatform)'
+        configuration: '$(BuildConfiguration)'
+    - task: NuGetCommand@2
+      inputs:
+        command: 'pack'
+        packagesToPack: '**/*.csproj' # We can use Nuspec File aswell
+        packDestination: '$(Build.ArtifactStagingDirectory)'
+        versioningScheme: 'off'
+        includeReferencedProjects: true
+        includeSymbols: true
+        verbosityPack: 'Normal'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: NugetPush
+  displayName: 'Nuget Push'
+  pool:
+    name: 'windows-latest'
+  jobs:
+  - job: Nuget_Publish
+    displayName: Nuget_Publish
+    steps:
+    - task: NuGetCommand@2
+      inputs:
+        command: 'push'
+        packagesToPush: '**/*.nupkg;!**/*.symbols.nupkg'
+        nuGetFeedType: 'internal'
+        publishVstsFeed: 'xxxxxxxxxx'
+        allowPackageConflicts: true
+        verbosityPush: 'Normal'
