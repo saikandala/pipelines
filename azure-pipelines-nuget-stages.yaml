@@ -58,6 +58,13 @@ stages:
   - job: Nuget_Publish
     displayName: Nuget_Publish
     steps:
+    - task: DownloadBuildArtifacts@0
+      inputs:
+        buildType: 'current'
+        downloadType: 'single'
+        artifactName: 'drop'
+        itemPattern: '**/*.nupkg'
+        downloadPath: '$(System.ArtifactsDirectory)'
     - task: NuGetCommand@2
       inputs:
         command: 'push'
